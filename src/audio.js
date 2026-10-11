@@ -115,7 +115,6 @@ export function createAudio() {
   let ctx = null;
   let master = null;
   let samples = null;
-  let unlocking = null;
 
   function ensure() {
     if (ctx) return;
@@ -147,21 +146,40 @@ export function createAudio() {
     };
   }
 
-  async function unlock() {
-    ensure();
-    if (!unlocking) {
-      unlocking = (async () => {
-        if (ctx.state === "suspended") {
-          await ctx.resume();
-        }
-        const silent = ctx.createBuffer(1, 1, ctx.sampleRate);
-        const source = ctx.createBufferSource();
-        source.buffer = silent;
-        source.connect(master);
-        source.start(0);
-      })().catch(() => {});
+  function beepSilent() {
+    if (!ctx || !master) return;
+    try {
+      const silent = ctx.createBuffer(1, 1, ctx.sampleRate);
+      const source = ctx.createBufferSource();
+      source.buffer = silent;
+      source.connect(master);
+      source.start(0);
+    } catch {
+      /* iOS may reject start() until resume finishes */
     }
-    await unlocking;
+  }
+
+  function resumeIfNeeded() {
+    ensure();
+    if (ctx.state === "suspended") {
+      const pending = ctx.resume();
+      if (pending && typeof pending.catch === "function") {
+        pending.catch(() => {});
+      }
+    }
+    beepSilent();
+  }
+
+  async function unlock() {
+    resumeIfNeeded();
+    if (ctx.state === "suspended") {
+      try {
+        await ctx.resume();
+      } catch {
+        /* keep trying on the next gesture */
+      }
+      beepSilent();
+    }
   }
 
   function sampleFor(instrument, articulation) {
@@ -173,6 +191,7 @@ export function createAudio() {
 
   function play(instrument, velocity = 80, articulation = null, when = 0) {
     ensure();
+    resumeIfNeeded();
     const buffer = sampleFor(instrument, articulation);
     if (!buffer) return;
     const source = ctx.createBufferSource();

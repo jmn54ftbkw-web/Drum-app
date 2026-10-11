@@ -549,6 +549,12 @@ function bind() {
       el.addEventListener("change", onToggleRow);
       return;
     }
+    if (el.dataset.action === "play") {
+      el.addEventListener("pointerdown", onPlayUnlock);
+      el.addEventListener("touchend", onPlayGesture, { passive: false });
+      el.addEventListener("click", onPlayGesture);
+      return;
+    }
     el.addEventListener("click", onAction);
   });
 }
@@ -755,7 +761,7 @@ function onAction(event) {
     return;
   }
   if (action === "play") {
-    togglePlayback();
+    onPlayGesture(event);
     return;
   }
   if (action === "add-piece") {
@@ -847,8 +853,24 @@ function onAction(event) {
   }
 }
 
-async function togglePlayback() {
-  await audio.unlock();
+let lastPlayGestureAt = 0;
+
+function onPlayUnlock() {
+  audio.unlock();
+}
+
+function onPlayGesture(event) {
+  event.preventDefault();
+  event.stopPropagation();
+  audio.unlock();
+  const now = performance.now();
+  if (now - lastPlayGestureAt < 350) return;
+  lastPlayGestureAt = now;
+  togglePlayback();
+}
+
+function togglePlayback() {
+  audio.unlock();
   if (state.playing) {
     stopPlayback(true);
     return;
@@ -858,13 +880,27 @@ async function togglePlayback() {
 
 function startPlayback() {
   if (!songTimeline().length) return;
+  audio.unlock();
   state.playing = true;
-  playOrigin = audio.currentTime + 0.06;
   playOffsetBeats = 0;
   state.playMeasureIndex = 0;
   state.playStep = 0;
+  scheduledUntil = 0;
+
+  const first = songTimeline()[0];
+  if (first) {
+    first.measure.rows.forEach((id) => {
+      const hit = first.measure.hits[hitKey(id, 0)];
+      if (hit) audio.play(id, hit.velocity, hit.articulation, 0);
+    });
+    scheduledUntil = 4 / first.measure.gridDivision;
+  }
+
+  playOrigin = audio.currentTime;
+  playOffsetBeats = 0;
   render();
-  scheduleFrom(0, 0);
+  pumpScheduler();
+  window.clearInterval(schedulerTimer);
   schedulerTimer = window.setInterval(() => pumpScheduler(), 40);
   const tick = () => {
     if (!state.playing) return;
