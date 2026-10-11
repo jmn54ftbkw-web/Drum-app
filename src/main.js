@@ -84,7 +84,11 @@ function toggleHit(measureId, instrument, step) {
     found.measure.hits[key] = { velocity: 80, articulation, timing: 0 };
     audio.play(instrument, 80, articulation);
   }
-  render();
+  const cell = app.querySelector(
+    `[data-action="cell"][data-measure="${measureId}"][data-instrument="${instrument}"][data-step="${step}"]`
+  );
+  if (cell) cell.innerHTML = renderHit(found.measure, instrument, step);
+  else render();
 }
 
 function updateHit(measureId, instrument, step, patch, redraw = true) {
@@ -210,14 +214,16 @@ function renderMeasure(measure, index) {
           ? `<div class="gutter"><button data-action="nudge-insert" data-measure="${measure.id}">${icon("handle")}</button></div>`
           : `<div class="gutter"></div>`;
       const cells = Array.from({ length: measure.gridDivision }, (_, step) => {
-        return `<div class="cell ${isBeatStart(step, measure.gridDivision) ? "beat-start" : ""}" role="button" tabindex="0" data-action="cell" data-measure="${measure.id}" data-instrument="${instrument}" data-step="${step}">${renderHit(measure, instrument, step)}</div>`;
+        return `<div class="cell ${isBeatStart(step, measure.gridDivision) ? "beat-start" : ""}" role="button" data-action="cell" data-measure="${measure.id}" data-instrument="${instrument}" data-step="${step}">${renderHit(measure, instrument, step)}</div>`;
       }).join("");
       return `${handle}<div class="row-icon">${kitGlyph(instrument)}<span>${inst.abbr}</span></div>${cells}<div class="gutter"></div>`;
     })
     .join("");
 
   return `<article class="measure" data-measure-el="${measure.id}" style="--cols:${measure.gridDivision}">
-    <div class="measure-grid">${header}${body}</div>
+    <div class="measure-scroll">
+      <div class="measure-grid">${header}${body}</div>
+    </div>
   </article>`;
 }
 
@@ -240,19 +246,53 @@ function renderCompose() {
   </div>`;
 }
 
+function songTimeline() {
+  const items = [];
+  let startBeat = 0;
+  let number = 1;
+  for (const section of state.song.sections) {
+    for (const measure of section.measures) {
+      items.push({ section, measure, startBeat, number });
+      startBeat += 4;
+      number += 1;
+    }
+  }
+  return items;
+}
+
+function renderPlayback() {
+  return `<div class="kit-stage" aria-label="Drummer kit view">
+    <div class="kit-horizon"></div>
+    ${KIT.map(
+      (inst) => `<div class="kit-piece kit-${inst.id}" data-kit="${inst.id}">
+        <div class="kit-lane" data-lane="${inst.id}"></div>
+        <button class="kit-pad" data-action="kit-hit" data-instrument="${inst.id}" aria-label="${inst.name}">
+          ${kitGlyph(inst.id)}<span>${inst.abbr}</span>
+        </button>
+      </div>`
+    ).join("")}
+  </div>`;
+}
+
 function renderPerform() {
-  const section = currentSection();
+  const items = songTimeline();
+  let lastSection = "";
+  const blocks = items
+    .map((item) => {
+      const heading =
+        item.section.id !== lastSection
+          ? `<div class="staff-section-label" data-staff-section="${item.section.id}">${item.section.name}</div>`
+          : "";
+      lastSection = item.section.id;
+      return `${heading}<div class="staff-card" data-staff-section="${item.section.id}" data-staff-measure="${item.measure.id}" data-start-beat="${item.startBeat}">${renderMeasureStaff(item.measure, item.number, 860)}</div>`;
+    })
+    .join("");
   return `<div class="perform">
     <div class="perform-heading">
-      <h2>${section.name}</h2>
+      <h2>Full song</h2>
       <p>${state.song.timeFeel} · ${state.song.bpm} BPM</p>
     </div>
-    ${section.measures
-      .map(
-        (measure, index) =>
-          `<div class="staff-card">${renderMeasureStaff(measure, index + 1, 860)}</div>`
-      )
-      .join("")}
+    ${blocks}
   </div>`;
 }
 
@@ -324,9 +364,15 @@ function renderHitMenu(menu) {
   const inst = instrumentById(menu.instrument);
   const x = menu.x;
   const y = menu.y;
+  const phone = window.innerWidth < 700;
   const below = y < window.innerHeight - 280;
-  const top = below ? y + 18 : y - 210;
-  const left = Math.min(Math.max(12, x - 40), window.innerWidth - 250);
+  const top = phone
+    ? Math.min(Math.max(12, y + 16), window.innerHeight - 260)
+    : below
+      ? y + 18
+      : y - 210;
+  const left = phone ? 12 : Math.min(Math.max(12, x - 40), window.innerWidth - 250);
+  const widthStyle = phone ? ";right:12px;width:auto;max-width:none" : "";
 
   let body = "";
   if (menu.view === "root") {
@@ -362,7 +408,7 @@ function renderHitMenu(menu) {
     `;
   }
 
-  return `<div class="popover ${below ? "below" : "above"}" style="top:${top}px;left:${left}px;--caret-x:28px" onclick="event.stopPropagation()">${body}</div>`;
+  return `<div class="popover ${below ? "below" : "above"}" style="top:${top}px;left:${left}px;--caret-x:28px${widthStyle}" onclick="event.stopPropagation()">${body}</div>`;
 }
 
 function renderMeasureMenu(menu) {
@@ -394,8 +440,16 @@ function renderMeasureMenu(menu) {
   </div>`;
 }
 
+function workspaceView() {
+  if (state.mode === "perform") return renderPerform();
+  if (state.mode === "playback") return renderPlayback();
+  return renderCompose();
+}
+
 function render() {
   const playSvg = state.playing ? icon("pause") : icon("play");
+  const workspace = app.querySelector(".workspace");
+  const savedScroll = workspace ? workspace.scrollTop : 0;
   app.innerHTML = `
     <div class="app">
       <header class="topbar">
@@ -409,7 +463,7 @@ function render() {
       </header>
       ${renderSections()}
       <main class="workspace">
-        ${state.mode === "perform" ? renderPerform() : renderCompose()}
+        ${workspaceView()}
       </main>
       <footer class="transport">
         <div class="transport-modes">${modeButtons("transport-mode")}</div>
@@ -428,7 +482,13 @@ function render() {
     ${popoverHtml()}
   `;
   bind();
+  const nextWorkspace = app.querySelector(".workspace");
+  if (nextWorkspace) {
+    nextWorkspace.scrollTop = savedScroll;
+    nextWorkspace.addEventListener("scroll", onWorkspaceScroll, { passive: true });
+  }
   updatePlayhead();
+  updateKitNotes();
 }
 
 function bind() {
@@ -474,14 +534,28 @@ function onAppPointerDown(event) {
     x: event.clientX,
     y: event.clientY,
     at: performance.now(),
+    dragged: false,
   };
   const found = findMeasure(state.song, measure);
   const existing = found?.measure.hits[hitKey(instrument, Number(step))];
   holdTimer = window.setTimeout(() => {
-    if (!press || !existing) return;
+    if (!press || press.dragged || !existing) return;
     holdFired = true;
     openHitMenu(press.measure, press.instrument, press.step, press.x, press.y);
   }, HOLD_MS);
+}
+
+function onAppPointerMove(event) {
+  if (!press) return;
+  if (event.pointerId != null && press.pointerId != null && event.pointerId !== press.pointerId) {
+    return;
+  }
+  const dx = Math.abs(event.clientX - press.x);
+  const dy = Math.abs(event.clientY - press.y);
+  if (dx > 8 || dy > 8) {
+    press.dragged = true;
+    clearTimeout(holdTimer);
+  }
 }
 
 function onAppPointerUp(event) {
@@ -498,9 +572,10 @@ function onAppPointerUp(event) {
   const current = press;
   press = null;
   clearTimeout(holdTimer);
+  if (current.dragged) return;
   const dx = Math.abs(event.clientX - current.x);
   const dy = Math.abs(event.clientY - current.y);
-  if (dx > 18 || dy > 18) return;
+  if (dx > 10 || dy > 10) return;
   toggleHit(current.measure, current.instrument, current.step);
 }
 
@@ -595,8 +670,16 @@ function onAction(event) {
   }
   if (action === "section") {
     state.selectedSectionId = event.currentTarget.dataset.id;
-    stopPlayback(false);
+    if (state.mode === "perform") {
+      refreshSectionStrip();
+      scrollPerformToSection(state.selectedSectionId);
+      return;
+    }
     render();
+    return;
+  }
+  if (action === "kit-hit") {
+    audio.play(event.currentTarget.dataset.instrument, 90, event.currentTarget.dataset.instrument === "hat" ? "closed" : null);
     return;
   }
   if (action === "settings") {
@@ -728,8 +811,7 @@ async function togglePlayback() {
 }
 
 function startPlayback() {
-  const measures = sectionMeasures();
-  if (!measures.length) return;
+  if (!songTimeline().length) return;
   state.playing = true;
   playOrigin = audio.currentTime + 0.06;
   playOffsetBeats = 0;
@@ -741,26 +823,34 @@ function startPlayback() {
   const tick = () => {
     if (!state.playing) return;
     updatePlayhead();
+    updateKitNotes();
     playheadFrame = window.requestAnimationFrame(tick);
   };
   playheadFrame = window.requestAnimationFrame(tick);
 }
 
 function totalBeats() {
-  return sectionMeasures().reduce((sum, measure) => sum + 4, 0);
+  return Math.max(1, songTimeline().length * 4);
+}
+
+function currentSongBeats() {
+  if (!state.playing) return 0;
+  const elapsed = (audio.currentTime - playOrigin) * (state.song.bpm / 60) + playOffsetBeats;
+  const length = totalBeats();
+  if (state.looping) return ((elapsed % length) + length) % length;
+  return Math.min(Math.max(0, elapsed), length);
 }
 
 function locate(beats) {
-  let remaining = beats;
-  const measures = sectionMeasures();
-  for (let i = 0; i < measures.length; i += 1) {
-    if (remaining < 4) {
-      const step = Math.floor(remaining * (measures[i].gridDivision / 4));
-      return { measureIndex: i, step, measure: measures[i] };
+  const items = songTimeline();
+  for (const item of items) {
+    if (beats < item.startBeat + 4) {
+      const step = Math.floor((beats - item.startBeat) * (item.measure.gridDivision / 4));
+      return { ...item, step: Math.max(0, step) };
     }
-    remaining -= 4;
   }
-  return { measureIndex: measures.length - 1, step: 0, measure: measures.at(-1) };
+  const last = items.at(-1);
+  return last ? { ...last, step: 0 } : null;
 }
 
 let scheduledUntil = 0;
@@ -796,65 +886,167 @@ function pumpScheduler() {
 }
 
 function scheduleHits(fromBeat, toBeat) {
-  const measures = sectionMeasures();
+  const items = songTimeline();
   if (toBeat < fromBeat) {
     scheduleHits(fromBeat, totalBeats());
     scheduleHits(0, toBeat);
     return;
   }
-  let cursor = 0;
-  measures.forEach((measure) => {
-    const stepBeats = 4 / measure.gridDivision;
-    for (let step = 0; step < measure.gridDivision; step += 1) {
-      const beat = cursor + step * stepBeats;
+  items.forEach((item) => {
+    const stepBeats = 4 / item.measure.gridDivision;
+    for (let step = 0; step < item.measure.gridDivision; step += 1) {
+      const beat = item.startBeat + step * stepBeats;
       if (beat >= fromBeat && beat < toBeat) {
         const when = playOrigin + ((beat - playOffsetBeats) * 60) / state.song.bpm;
         KIT.forEach((inst) => {
-          const hit = measure.hits[hitKey(inst.id, step)];
+          const hit = item.measure.hits[hitKey(inst.id, step)];
           if (!hit) return;
           const timing = (hit.timing || 0) / 1000;
           audio.play(inst.id, hit.velocity, hit.articulation, Math.max(audio.currentTime, when + timing));
         });
       }
     }
-    cursor += 4;
   });
 }
 
 function updatePlayhead() {
   document.querySelectorAll(".playhead, .beat-bar").forEach((el) => el.remove());
-  if (!state.playing && state.mode === "perform") return;
-  const measures = sectionMeasures();
-  if (!measures.length) return;
-  const now = audio.currentTime;
-  const elapsedBeats = state.playing
-    ? Math.max(0, (now - playOrigin) * (state.song.bpm / 60) + playOffsetBeats)
-    : 0;
-  const pos = locate(elapsedBeats % Math.max(totalBeats(), 0.0001));
-  const article = document.querySelector(`[data-measure-el="${pos.measure.id}"]`);
-  if (!article) return;
-  const cells = article.querySelectorAll(".cell");
-  const first = cells[pos.step];
-  if (!first) return;
-  const grid = article.querySelector(".measure-grid");
-  const rect = grid.getBoundingClientRect();
-  const cellRect = first.getBoundingClientRect();
-  const playhead = document.createElement("div");
-  playhead.className = "playhead";
-  playhead.style.left = `${cellRect.left - rect.left}px`;
-  grid.appendChild(playhead);
+  const pos = locate(currentSongBeats());
+  if (!pos) return;
 
-  const beatStart = Math.floor(pos.step / (pos.measure.gridDivision / 4)) * (pos.measure.gridDivision / 4);
-  const beatCell = cells[beatStart];
-  const beatEnd = cells[Math.min(cells.length - 1, beatStart + pos.measure.gridDivision / 4 - 1)];
-  if (beatCell && beatEnd) {
-    const bar = document.createElement("div");
-    bar.className = "beat-bar";
-    const start = beatCell.getBoundingClientRect();
-    const end = beatEnd.getBoundingClientRect();
-    bar.style.left = `${start.left - rect.left}px`;
-    bar.style.width = `${end.right - start.left}px`;
-    grid.appendChild(bar);
+  if (state.mode === "compose") {
+    const article = document.querySelector(`[data-measure-el="${pos.measure.id}"]`);
+    if (!article) return;
+    const cells = article.querySelectorAll(".cell");
+    const first = cells[pos.step];
+    if (!first) return;
+    const grid = article.querySelector(".measure-grid");
+    const rect = grid.getBoundingClientRect();
+    const cellRect = first.getBoundingClientRect();
+    const playhead = document.createElement("div");
+    playhead.className = "playhead";
+    playhead.style.left = `${cellRect.left - rect.left}px`;
+    grid.appendChild(playhead);
+    const beatStart =
+      Math.floor(pos.step / (pos.measure.gridDivision / 4)) * (pos.measure.gridDivision / 4);
+    const beatCell = cells[beatStart];
+    const beatEnd = cells[Math.min(cells.length - 1, beatStart + pos.measure.gridDivision / 4 - 1)];
+    if (beatCell && beatEnd) {
+      const bar = document.createElement("div");
+      bar.className = "beat-bar";
+      const start = beatCell.getBoundingClientRect();
+      const end = beatEnd.getBoundingClientRect();
+      bar.style.left = `${start.left - rect.left}px`;
+      bar.style.width = `${end.right - start.left}px`;
+      grid.appendChild(bar);
+    }
+    return;
+  }
+
+  if (state.mode === "perform") {
+    const card = document.querySelector(`[data-staff-measure="${pos.measure.id}"]`);
+    if (!card) return;
+    const svg = card.querySelector("svg");
+    if (!svg) return;
+    const frac = (currentSongBeats() - pos.startBeat) / 4;
+    const playhead = document.createElement("div");
+    playhead.className = "playhead staff-playhead";
+    playhead.style.left = `${(58 + (790 * Math.min(1, Math.max(0, frac)))) * (svg.clientWidth / 860)}px`;
+    card.appendChild(playhead);
+    if (state.playing && pos.section.id !== state.selectedSectionId) {
+      state.selectedSectionId = pos.section.id;
+      refreshSectionStrip();
+    }
+    if (state.playing) followPerformPlayhead(card);
+  }
+}
+
+function updateKitNotes() {
+  const stage = app.querySelector(".kit-stage");
+  if (!stage) return;
+  const nowBeat = currentSongBeats();
+  const ahead = 3;
+  const length = totalBeats();
+  KIT.forEach((inst) => {
+    const lane = stage.querySelector(`[data-lane="${inst.id}"]`);
+    const pad = stage.querySelector(`.kit-${inst.id} .kit-pad`);
+    if (!lane) return;
+    const notes = [];
+    songTimeline().forEach((item) => {
+      const stepBeats = 4 / item.measure.gridDivision;
+      for (let step = 0; step < item.measure.gridDivision; step += 1) {
+        const hit = item.measure.hits[hitKey(inst.id, step)];
+        if (!hit) continue;
+        const beat = item.startBeat + step * stepBeats;
+        let delta = beat - nowBeat;
+        if (state.looping && state.playing && delta < -0.15) delta += length;
+        if (delta < -0.12 || delta > ahead) continue;
+        notes.push({
+          t: Math.max(0, delta / ahead),
+          hit,
+          open: inst.id === "hat" && hit.articulation === "open",
+          hot: Math.abs(delta) < 0.08,
+        });
+      }
+    });
+    lane.innerHTML = notes
+      .map((note) => {
+        const scale = 0.4 + (1 - note.t) * 0.75;
+        return `<span class="kit-note ${note.open ? "open" : ""} ${note.hot ? "hot" : ""}" style="--hit:${velocityColor(note.hit.velocity)};top:${note.t * 100}%;--s:${scale}"></span>`;
+      })
+      .join("");
+    pad?.classList.toggle("strike", notes.some((note) => note.hot));
+  });
+}
+
+let suppressScrollSelect = false;
+let followLock = 0;
+
+function refreshSectionStrip() {
+  app.querySelectorAll(".section-chip[data-id]").forEach((el) => {
+    el.classList.toggle("active", el.dataset.id === state.selectedSectionId);
+  });
+}
+
+function scrollPerformToSection(sectionId) {
+  const workspace = app.querySelector(".workspace");
+  const target = app.querySelector(`[data-staff-section="${sectionId}"]`);
+  if (!workspace || !target) return;
+  suppressScrollSelect = true;
+  target.scrollIntoView({ behavior: "smooth", block: "start" });
+  window.setTimeout(() => {
+    suppressScrollSelect = false;
+  }, 450);
+}
+
+function followPerformPlayhead(card) {
+  const now = performance.now();
+  if (now - followLock < 240) return;
+  const workspace = app.querySelector(".workspace");
+  if (!workspace) return;
+  const cardTop = card.offsetTop;
+  const viewTop = workspace.scrollTop;
+  const viewBottom = viewTop + workspace.clientHeight;
+  if (cardTop < viewTop + 40 || cardTop > viewBottom - 120) {
+    followLock = now;
+    workspace.scrollTo({ top: Math.max(0, cardTop - 48), behavior: "smooth" });
+  }
+}
+
+function onWorkspaceScroll() {
+  if (state.mode !== "perform" || suppressScrollSelect) return;
+  const workspace = app.querySelector(".workspace");
+  if (!workspace) return;
+  const labels = [...app.querySelectorAll(".staff-section-label[data-staff-section]")];
+  if (!labels.length) return;
+  const marker = workspace.scrollTop + 72;
+  let current = labels[0].dataset.staffSection;
+  labels.forEach((label) => {
+    if (label.offsetTop <= marker) current = label.dataset.staffSection;
+  });
+  if (current && current !== state.selectedSectionId) {
+    state.selectedSectionId = current;
+    refreshSectionStrip();
   }
 }
 
@@ -884,6 +1076,7 @@ app.addEventListener("pointerdown", () => {
   audio.unlock();
 });
 app.addEventListener("pointerdown", onAppPointerDown);
+window.addEventListener("pointermove", onAppPointerMove, { passive: true });
 window.addEventListener("pointerup", onAppPointerUp);
 app.addEventListener("contextmenu", onAppContextMenu);
 app.addEventListener("dblclick", onAppDoubleClick);
