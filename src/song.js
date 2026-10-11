@@ -262,6 +262,34 @@ export function songKitIds(song) {
   return used;
 }
 
+export function songRows(song) {
+  return sortRows([...songKitIds(song)]);
+}
+
+export function addRowToSong(song, instrument) {
+  song.sections.forEach((section) => {
+    section.measures.forEach((measure) => {
+      if (!measure.rows.includes(instrument)) {
+        measure.rows = sortRows([...measure.rows, instrument]);
+      }
+    });
+  });
+}
+
+export function removeRowFromSong(song, instrument) {
+  const current = songRows(song);
+  if (current.length <= 1 || !current.includes(instrument)) return false;
+  song.sections.forEach((section) => {
+    section.measures.forEach((measure) => {
+      measure.rows = measure.rows.filter((id) => id !== instrument);
+      Object.keys(measure.hits).forEach((key) => {
+        if (key.startsWith(`${instrument}:`)) delete measure.hits[key];
+      });
+    });
+  });
+  return true;
+}
+
 export function songKit(song) {
   const used = songKitIds(song);
   return KIT.filter((item) => used.has(item.id));

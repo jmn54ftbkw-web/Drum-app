@@ -4,6 +4,7 @@ import {
   KIT,
   SECTION_COLORS,
   GRID_DIVISIONS,
+  addRowToSong,
   availablePieces,
   cloneMeasure,
   createMeasure,
@@ -13,8 +14,9 @@ import {
   hitKey,
   instrumentById,
   remapHits,
+  removeRowFromSong,
   songKitIds,
-  sortRows,
+  songRows,
   stepLabels,
   uid,
   velocityColor,
@@ -122,13 +124,17 @@ function paintHit(measureId, instrument, step) {
   }
 }
 
-function insertMeasure(section, index, measure = createMeasure()) {
+function blankMeasure() {
+  return createMeasure({}, 16, songRows(state.song));
+}
+
+function insertMeasure(section, index, measure = blankMeasure()) {
   section.measures.splice(index, 0, measure);
 }
 
 function removeMeasure(section, measureId) {
   if (section.measures.length <= 1) {
-    section.measures[0] = createMeasure();
+    section.measures[0] = blankMeasure();
     return;
   }
   section.measures = section.measures.filter((item) => item.id !== measureId);
@@ -364,26 +370,26 @@ function popoverHtml() {
     </div>`;
   }
   if (editRows) {
-    const found = findMeasure(state.song, editRows);
+    const rows = songRows(state.song);
     extra += `<div class="sheet" data-action="dismiss">
       <div class="sheet-card" onclick="event.stopPropagation()">
-        <h2>Edit grid rows</h2>
+        <h2>Edit kit pieces</h2>
+        <p class="sheet-hint">Applies to every measure in the song</p>
         <div class="row-toggles">
           ${KIT.map((item) => {
-            const on = found.measure.rows.includes(item.id);
-            return `<label>${item.name}<input type="checkbox" data-action="toggle-row" data-measure="${editRows}" data-instrument="${item.id}" ${on ? "checked" : ""} /></label>`;
+            const on = rows.includes(item.id);
+            return `<label>${item.name}<input type="checkbox" data-action="toggle-row" data-instrument="${item.id}" ${on ? "checked" : ""} /></label>`;
           }).join("")}
         </div>
       </div>
     </div>`;
   }
   if (addPiece) {
-    const found = findMeasure(state.song, addPiece);
-    const choices = found ? availablePieces(found.measure.rows) : [];
+    const choices = availablePieces(songRows(state.song));
     extra += `<div class="sheet" data-action="dismiss">
       <div class="sheet-card" onclick="event.stopPropagation()">
         <h2>Add kit piece</h2>
-        <p class="sheet-hint">Pieces not already on this grid</p>
+        <p class="sheet-hint">Adds a row to every measure in the song</p>
         <div class="piece-list">
           ${
             choices.length
@@ -393,7 +399,7 @@ function popoverHtml() {
                       `<button class="piece-choice" data-action="pick-piece" data-measure="${addPiece}" data-instrument="${item.id}">${kitGlyph(item.id)}<span class="piece-name">${item.name}</span><span class="piece-abbr">${item.abbr}</span></button>`
                   )
                   .join("")
-              : `<p class="sheet-empty">Every piece is already on this grid.</p>`
+              : `<p class="sheet-empty">Every piece is already on the kit.</p>`
           }
         </div>
       </div>
@@ -706,16 +712,11 @@ function onSaveSettings(event) {
 }
 
 function onToggleRow(event) {
-  const measureId = event.currentTarget.dataset.measure;
   const instrument = event.currentTarget.dataset.instrument;
-  const found = findMeasure(state.song, measureId);
-  if (!found) return;
   if (event.currentTarget.checked) {
-    if (!found.measure.rows.includes(instrument)) {
-      found.measure.rows = sortRows([...found.measure.rows, instrument]);
-    }
-  } else if (found.measure.rows.length > 1) {
-    found.measure.rows = found.measure.rows.filter((id) => id !== instrument);
+    addRowToSong(state.song, instrument);
+  } else {
+    removeRowFromSong(state.song, instrument);
   }
   render();
 }
@@ -766,7 +767,7 @@ function onAction(event) {
       id: uid("s"),
       name,
       color: SECTION_COLORS[name],
-      measures: [createMeasure()],
+      measures: [blankMeasure()],
     };
     state.song.sections.push(next);
     state.selectedSectionId = next.id;
@@ -795,13 +796,9 @@ function onAction(event) {
     return;
   }
   if (action === "pick-piece") {
-    const measureId = event.currentTarget.dataset.measure;
     const instrument = event.currentTarget.dataset.instrument;
-    const found = findMeasure(state.song, measureId);
-    if (found && !found.measure.rows.includes(instrument)) {
-      found.measure.rows = sortRows([...found.measure.rows, instrument]);
-      audio.play(instrument, 90, instrument === "hat" ? "closed" : null);
-    }
+    addRowToSong(state.song, instrument);
+    audio.play(instrument, 90, instrument === "hat" ? "closed" : null);
     closeMenus();
     render();
     return;
