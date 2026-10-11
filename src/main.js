@@ -149,18 +149,37 @@ function icon(name) {
   return `<svg viewBox="0 0 24 24" aria-hidden="true">${paths[name]}</svg>`;
 }
 
+function drumGlyph(rx, headY, depth, stands = false) {
+  const left = 12 - rx;
+  const right = 12 + rx;
+  const ry = Math.max(1.7, rx * 0.4);
+  const bottom = headY + depth;
+  const curve = ry * 1.15;
+  let body = `<ellipse cx="12" cy="${headY}" rx="${rx}" ry="${ry}" fill="none" stroke="currentColor" stroke-width="1.55"/>
+    <path d="M${left} ${headY} V${bottom} c0 ${curve} ${rx * 0.85} ${curve + 0.6} ${rx} ${curve + 0.6} s${rx} -0.5 ${rx} ${-(curve + 0.6)} V${headY}" fill="none" stroke="currentColor" stroke-width="1.55"/>`;
+  if (stands) {
+    const foot = Math.min(23.2, bottom + curve + 2.4);
+    body += `<path d="M${left + 1.4} ${bottom + 1} L${left - 0.2} ${foot} M12 ${bottom + curve * 0.45} V${foot} M${right - 1.4} ${bottom + 1} L${right + 0.2} ${foot}" fill="none" stroke="currentColor" stroke-width="1.25" stroke-linecap="round"/>`;
+  }
+  return `<svg viewBox="0 0 24 24">${body}</svg>`;
+}
+
 function kitGlyph(id) {
   if (id === "kick") {
     return `<svg viewBox="0 0 24 24"><circle cx="12" cy="13" r="7" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="13" r="2" fill="currentColor"/></svg>`;
   }
   if (id === "snare") {
-    return `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="10" rx="7" ry="3" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 10v5c0 1.7 3.1 3 7 3s7-1.3 7-3v-5" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`;
+    return drumGlyph(7, 10, 5);
   }
   if (id === "hat") {
     return `<svg viewBox="0 0 24 24"><path d="M4 13h16M7 13l5-4 5 4M8 16h8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
   }
-  if (id === "crash" || id === "crash2" || id === "ride") {
-    return `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 6v12" stroke="currentColor" stroke-width="1.6"/></svg>`;
+  if (id === "ride") {
+    return `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="7.1" ry="2.15" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 6.6v10.8" stroke="currentColor" stroke-width="1.6"/></svg>`;
+  }
+  if (id === "crash" || id === "crash2") {
+    const tilt = id === "crash2" ? 15 : -18;
+    return `<svg viewBox="0 0 24 24"><g transform="rotate(${tilt} 12 12)"><ellipse cx="12" cy="12" rx="9.4" ry="2.85" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 5.2v13.6" stroke="currentColor" stroke-width="1.6"/></g></svg>`;
   }
   if (id === "splash") {
     return `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="5.5" ry="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 8v8" stroke="currentColor" stroke-width="1.6"/></svg>`;
@@ -177,10 +196,14 @@ function kitGlyph(id) {
   if (id === "clap") {
     return `<svg viewBox="0 0 24 24"><path d="M8 15c-1.4-1-1.6-3.2-.4-4.6l4-4.6 1.3 1.1-3.2 3.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M11 16.5c-1.5-1.2-1.4-3.6.2-4.8l3.6-3.2 1.2 1.3-3 2.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
   }
-  if (id === "floorTom" || id === "floorTom1" || id === "floorTom2") {
-    return `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="8" rx="7" ry="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 8v8c0 1.8 3.1 3.2 7 3.2s7-1.4 7-3.2V8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`;
-  }
-  return `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="6" ry="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 12h8" stroke="currentColor"/></svg>`;
+  if (id === "tomHigh1") return drumGlyph(4.6, 6.6, 9.2);
+  if (id === "tomHigh2") return drumGlyph(5.5, 6.8, 8.6);
+  if (id === "tom1") return drumGlyph(6.1, 7.6, 7.6);
+  if (id === "tom2") return drumGlyph(6.6, 8, 7);
+  if (id === "floorTom1") return drumGlyph(7.3, 6.8, 9.4, true);
+  if (id === "floorTom") return drumGlyph(7.6, 6.6, 9.8, true);
+  if (id === "floorTom2") return drumGlyph(8, 6.4, 10.2, true);
+  return drumGlyph(6, 8, 7);
 }
 
 function modeButtons(buttonClass) {
