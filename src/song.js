@@ -1,11 +1,28 @@
+const T = 36;
+const L = 12;
+
 export const KIT = [
-  { id: "kick", abbr: "Kk", name: "Kick" },
-  { id: "snare", abbr: "Sn", name: "Snare" },
-  { id: "hat", abbr: "Hh", name: "High Hat" },
-  { id: "crash", abbr: "Cr", name: "Crash" },
-  { id: "ride", abbr: "Rd", name: "Ride" },
-  { id: "tom2", abbr: "T2", name: "Tom 2" },
+  { id: "kick", abbr: "Kk", name: "Kick", voice: "down", head: "oval", pitch: T + L * 4.5, layout: { pad: 82 } },
+  { id: "snare", abbr: "Sn", name: "Snare", voice: "down", head: "oval", pitch: T + L * 2.5, layout: { pad: 66 } },
+  { id: "hat", abbr: "Hh", name: "High Hat", voice: "up", head: "x", pitch: T - L / 2, layout: { pad: 58 } },
+  { id: "crash", abbr: "Cr", name: "Crash", voice: "up", head: "x", pitch: T - L, layout: { pad: 62 } },
+  { id: "ride", abbr: "Rd", name: "Ride", voice: "up", head: "x", pitch: T, layout: { pad: 62 } },
+  { id: "splash", abbr: "Sp", name: "Splash", voice: "up", head: "x", pitch: T - L * 1.5, layout: { pad: 48 } },
+  { id: "crash2", abbr: "Cr2", name: "Crash 2", voice: "up", head: "x", pitch: T - L * 1.15, layout: { pad: 58 } },
+  { id: "trash", abbr: "Tr", name: "Trash", voice: "up", head: "x", pitch: T - L * 0.65, layout: { pad: 52 } },
+  { id: "tomHigh1", abbr: "HT1", name: "High Tom 1", voice: "down", head: "oval", pitch: T + L * 0.5, layout: { pad: 52 } },
+  { id: "tomHigh2", abbr: "HT2", name: "High Tom 2", voice: "down", head: "oval", pitch: T + L * 0.85, layout: { pad: 54 } },
+  { id: "tom1", abbr: "T1", name: "Tom 1", voice: "down", head: "oval", pitch: T + L, layout: { pad: 56 } },
+  { id: "tom2", abbr: "T2", name: "Tom 2", voice: "down", head: "oval", pitch: T + L * 1.5, layout: { pad: 58 } },
+  { id: "floorTom1", abbr: "FT1", name: "Floor Tom 1", voice: "down", head: "oval", pitch: T + L * 3.25, layout: { pad: 62 } },
+  { id: "floorTom", abbr: "FT", name: "Floor Tom", voice: "down", head: "oval", pitch: T + L * 3.5, layout: { pad: 64 } },
+  { id: "floorTom2", abbr: "FT2", name: "Floor Tom 2", voice: "down", head: "oval", pitch: T + L * 4, layout: { pad: 66 } },
+  { id: "cowbell", abbr: "Cb", name: "Cowbell", voice: "up", head: "x", pitch: T + L * 0.25, layout: { pad: 46 } },
+  { id: "tambourine", abbr: "Tb", name: "Tambourine", voice: "up", head: "x", pitch: T - L * 1.35, layout: { pad: 46 } },
+  { id: "clap", abbr: "Cp", name: "Clap", voice: "up", head: "x", pitch: T + L * 2, layout: { pad: 48 } },
 ];
+
+export const DEFAULT_ROWS = ["kick", "snare", "hat", "crash", "ride", "tom2"];
 
 export const SECTION_COLORS = {
   Intro: "#5AC8F5",
@@ -51,7 +68,7 @@ export function emptyHits() {
   return {};
 }
 
-export function createMeasure(hits = {}, gridDivision = 16, rows = KIT.map((k) => k.id)) {
+export function createMeasure(hits = {}, gridDivision = 16, rows = DEFAULT_ROWS) {
   return {
     id: uid("m"),
     gridDivision,
@@ -213,5 +230,39 @@ export function remapHits(measure, nextDivision) {
 }
 
 export function instrumentById(id) {
-  return KIT.find((item) => item.id === id);
+  return (
+    KIT.find((item) => item.id === id) ?? {
+      id,
+      abbr: id.slice(0, 2),
+      name: id,
+      voice: "down",
+      head: "oval",
+      pitch: T + L * 2.5,
+      layout: { left: 50, top: 40 },
+    }
+  );
+}
+
+export function sortRows(rows) {
+  const order = KIT.map((item) => item.id);
+  return order.filter((id) => rows.includes(id));
+}
+
+export function availablePieces(rows) {
+  return KIT.filter((item) => !rows.includes(item.id));
+}
+
+export function songKitIds(song) {
+  const used = new Set();
+  song.sections.forEach((section) => {
+    section.measures.forEach((measure) => {
+      measure.rows.forEach((id) => used.add(id));
+    });
+  });
+  return used;
+}
+
+export function songKit(song) {
+  const used = songKitIds(song);
+  return KIT.filter((item) => used.has(item.id));
 }

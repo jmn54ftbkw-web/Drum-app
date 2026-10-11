@@ -4,7 +4,19 @@ const KIT_GAIN = {
   hat: 0.42,
   crash: 0.55,
   ride: 0.4,
+  tomHigh1: 0.78,
+  tomHigh2: 0.8,
+  tom1: 0.82,
   tom2: 0.85,
+  floorTom: 0.9,
+  floorTom1: 0.88,
+  floorTom2: 0.92,
+  cowbell: 0.55,
+  tambourine: 0.48,
+  clap: 0.7,
+  splash: 0.5,
+  crash2: 0.52,
+  trash: 0.58,
 };
 
 function write(buffer, fn) {
@@ -47,6 +59,44 @@ function makeSnare(ctx) {
   });
 }
 
+function makeCowbell(ctx) {
+  const seconds = 0.38;
+  const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * seconds), ctx.sampleRate);
+  return write(buffer, (t) => {
+    const a = Math.sin(2 * Math.PI * 800 * t) * Math.exp(-t * 11);
+    const b = Math.sin(2 * Math.PI * 540 * t) * Math.exp(-t * 9) * 0.72;
+    const clang = Math.sin(2 * Math.PI * 1280 * t) * Math.exp(-t * 28) * 0.22;
+    const click = (Math.random() * 2 - 1) * Math.exp(-t * 70) * 0.12;
+    return a + b + clang + click;
+  });
+}
+
+function makeTambourine(ctx) {
+  const seconds = 0.45;
+  const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * seconds), ctx.sampleRate);
+  return write(buffer, (t) => {
+    const jingle = 0.55 + 0.45 * Math.abs(Math.sin(2 * Math.PI * 42 * t));
+    const noise = (Math.random() * 2 - 1) * Math.exp(-t * 8) * jingle;
+    const shell = Math.sin(2 * Math.PI * 210 * t) * Math.exp(-t * 18) * 0.12;
+    return noise * 0.85 + shell;
+  });
+}
+
+function makeClap(ctx) {
+  const seconds = 0.28;
+  const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * seconds), ctx.sampleRate);
+  return write(buffer, (t) => {
+    const bursts = [0, 0.012, 0.024, 0.048];
+    let amp = 0;
+    bursts.forEach((start, i) => {
+      if (t >= start) {
+        amp += Math.exp(-(t - start) * (26 + i * 6)) * (i === bursts.length - 1 ? 1 : 0.55);
+      }
+    });
+    return (Math.random() * 2 - 1) * amp * 0.9;
+  });
+}
+
 function makeNoiseBurst(ctx, seconds, highpass, decay) {
   const buffer = ctx.createBuffer(1, Math.floor(ctx.sampleRate * seconds), ctx.sampleRate);
   const data = buffer.getChannelData(0);
@@ -80,8 +130,20 @@ export function createAudio() {
       hatClosed: makeNoiseBurst(ctx, 0.09, 0.18, 55),
       hatOpen: makeNoiseBurst(ctx, 0.42, 0.14, 9),
       crash: makeNoiseBurst(ctx, 1.6, 0.08, 3.2),
+      crash2: makeNoiseBurst(ctx, 1.35, 0.09, 3.8),
+      splash: makeNoiseBurst(ctx, 0.5, 0.05, 9),
+      trash: makeNoiseBurst(ctx, 0.72, 0.035, 6.2),
       ride: makeNoiseBurst(ctx, 0.7, 0.12, 7),
+      tomHigh1: makeTom(ctx, 230),
+      tomHigh2: makeTom(ctx, 190),
+      tom1: makeTom(ctx, 155),
       tom2: makeTom(ctx, 128),
+      floorTom: makeTom(ctx, 98),
+      floorTom1: makeTom(ctx, 105),
+      floorTom2: makeTom(ctx, 82),
+      cowbell: makeCowbell(ctx),
+      tambourine: makeTambourine(ctx),
+      clap: makeClap(ctx),
     };
   }
 

@@ -1,23 +1,23 @@
-import { hitKey } from "./song.js";
+import { hitKey, instrumentById, KIT } from "./song.js";
 
 const STAFF_TOP = 36;
 const LINE_GAP = 12;
 const STAFF_LEFT = 58;
 
-const PITCH = {
-  crash: STAFF_TOP - LINE_GAP,
-  hat: STAFF_TOP - LINE_GAP / 2,
-  ride: STAFF_TOP,
-  tom2: STAFF_TOP + LINE_GAP * 1.5,
-  snare: STAFF_TOP + LINE_GAP * 2.5,
-  kick: STAFF_TOP + LINE_GAP * 4.5,
-};
+const UP_VOICE = KIT.filter((item) => item.voice === "up").map((item) => item.id);
+const DOWN_VOICE = KIT.filter((item) => item.voice === "down").map((item) => item.id);
 
-const UP_VOICE = ["hat", "crash", "ride"];
-const DOWN_VOICE = ["kick", "snare", "tom2"];
+function pitchOf(id) {
+  return instrumentById(id).pitch;
+}
+
+function usesXHead(id) {
+  return instrumentById(id).head === "x";
+}
 
 function hitsAt(measure, step, ids) {
   return ids
+    .filter((id) => measure.rows.includes(id))
     .map((id) => {
       const hit = measure.hits[hitKey(id, step)];
       return hit ? { id, hit } : null;
@@ -159,7 +159,7 @@ function renderVoice(events, division, width, up) {
       return { ...event, x, stemY: midY, tipY: midY };
     }
 
-    const ys = event.notes.map((note) => PITCH[note.id]);
+    const ys = event.notes.map((note) => pitchOf(note.id));
     const yMin = Math.min(...ys);
     const yMax = Math.max(...ys);
     const tipY = up ? yMin - stemLen : yMax + stemLen;
@@ -167,9 +167,8 @@ function renderVoice(events, division, width, up) {
     const stemX = up ? x + 5.6 : x - 5.6;
 
     event.notes.forEach((note) => {
-      const y = PITCH[note.id];
-      const isCymbal = note.id === "hat" || note.id === "crash" || note.id === "ride";
-      if (isCymbal) {
+      const y = pitchOf(note.id);
+      if (usesXHead(note.id)) {
         svg += xNotehead(x, y, note.id === "hat" && note.hit.articulation === "open");
         if (note.id === "hat" && note.hit.articulation === "open") {
           svg += `<text class="art-mark" x="${x}" y="${y - 12}">o</text>`;

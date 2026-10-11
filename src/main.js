@@ -4,6 +4,7 @@ import {
   KIT,
   SECTION_COLORS,
   GRID_DIVISIONS,
+  availablePieces,
   cloneMeasure,
   createMeasure,
   createSong,
@@ -12,6 +13,8 @@ import {
   hitKey,
   instrumentById,
   remapHits,
+  songKitIds,
+  sortRows,
   stepLabels,
   uid,
   velocityColor,
@@ -35,6 +38,7 @@ const state = {
     settings: false,
     editRows: null,
     addSection: false,
+    addPiece: null,
   },
 };
 
@@ -70,6 +74,7 @@ function closeMenus() {
     settings: false,
     editRows: null,
     addSection: false,
+    addPiece: null,
   };
 }
 
@@ -154,8 +159,26 @@ function kitGlyph(id) {
   if (id === "hat") {
     return `<svg viewBox="0 0 24 24"><path d="M4 13h16M7 13l5-4 5 4M8 16h8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
   }
-  if (id === "crash" || id === "ride") {
+  if (id === "crash" || id === "crash2" || id === "ride") {
     return `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="8" ry="2.4" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 6v12" stroke="currentColor" stroke-width="1.6"/></svg>`;
+  }
+  if (id === "splash") {
+    return `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="5.5" ry="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 8v8" stroke="currentColor" stroke-width="1.6"/></svg>`;
+  }
+  if (id === "trash") {
+    return `<svg viewBox="0 0 24 24"><path d="M4 12c2-2 4-3 8-3s6 1 8 3c-2 2-4 3-8 3s-6-1-8-3z" fill="none" stroke="currentColor" stroke-width="1.5"/><path d="M8 10.5 10 14M14 10l2 3.6" stroke="currentColor" stroke-width="1.4"/></svg>`;
+  }
+  if (id === "cowbell") {
+    return `<svg viewBox="0 0 24 24"><path d="M8 6h8l2 12H6z" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M9 12h6" stroke="currentColor" stroke-width="1.4"/></svg>`;
+  }
+  if (id === "tambourine") {
+    return `<svg viewBox="0 0 24 24"><circle cx="12" cy="12" r="6.5" fill="none" stroke="currentColor" stroke-width="1.6"/><circle cx="12" cy="5.4" r="1.2" fill="currentColor"/><circle cx="18" cy="9" r="1.2" fill="currentColor"/><circle cx="16.8" cy="16.2" r="1.2" fill="currentColor"/><circle cx="7.2" cy="16.2" r="1.2" fill="currentColor"/><circle cx="6" cy="9" r="1.2" fill="currentColor"/></svg>`;
+  }
+  if (id === "clap") {
+    return `<svg viewBox="0 0 24 24"><path d="M8 15c-1.4-1-1.6-3.2-.4-4.6l4-4.6 1.3 1.1-3.2 3.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/><path d="M11 16.5c-1.5-1.2-1.4-3.6.2-4.8l3.6-3.2 1.2 1.3-3 2.7" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
+  }
+  if (id === "floorTom" || id === "floorTom1" || id === "floorTom2") {
+    return `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="8" rx="7" ry="2.6" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M5 8v8c0 1.8 3.1 3.2 7 3.2s7-1.4 7-3.2V8" fill="none" stroke="currentColor" stroke-width="1.6"/></svg>`;
   }
   return `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="6" ry="5" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M8 12h8" stroke="currentColor"/></svg>`;
 }
@@ -211,7 +234,7 @@ function renderMeasure(measure, index) {
       const inst = instrumentById(instrument);
       const handle =
         rowIndex === 0
-          ? `<div class="gutter"><button data-action="nudge-insert" data-measure="${measure.id}">${icon("handle")}</button></div>`
+          ? `<div class="gutter"><span class="row-handle">${icon("handle")}</span></div>`
           : `<div class="gutter"></div>`;
       const cells = Array.from({ length: measure.gridDivision }, (_, step) => {
         return `<div class="cell ${isBeatStart(step, measure.gridDivision) ? "beat-start" : ""}" role="button" data-action="cell" data-measure="${measure.id}" data-instrument="${instrument}" data-step="${step}">${renderHit(measure, instrument, step)}</div>`;
@@ -235,14 +258,9 @@ function renderCompose() {
   return `<div class="measure-stack">
     ${measures
       .map((measure, index) => {
-        const insert =
-          index < measures.length - 1
-            ? `<button class="insert" data-action="insert-after" data-measure="${measure.id}"><span>+</span> Add</button>`
-            : "";
-        return `${renderMeasure(measure, index)}${insert}`;
+        return `${renderMeasure(measure, index)}<button class="insert" data-action="add-piece" data-measure="${measure.id}"><span>+</span> Add</button>`;
       })
       .join("")}
-    <div class="add-end"><button data-action="add-end" aria-label="Add measure">+</button></div>
   </div>`;
 }
 
@@ -261,16 +279,18 @@ function songTimeline() {
 }
 
 function renderPlayback() {
+  const active = songKitIds(state.song);
   return `<div class="kit-stage" aria-label="Drummer kit view">
     <div class="kit-horizon"></div>
-    ${KIT.map(
-      (inst) => `<div class="kit-piece kit-${inst.id}" data-kit="${inst.id}">
+    ${KIT.map((inst) => {
+      const on = active.has(inst.id);
+      return `<div class="kit-piece kit-${inst.id} ${on ? "is-active" : "ghost"}" data-kit="${inst.id}">
         <div class="kit-lane" data-lane="${inst.id}"></div>
-        <button class="kit-pad" data-action="kit-hit" data-instrument="${inst.id}" aria-label="${inst.name}">
+        <button class="kit-pad" ${on ? `data-action="kit-hit" data-instrument="${inst.id}"` : "disabled tabindex='-1'"} aria-label="${inst.name}">
           ${kitGlyph(inst.id)}<span>${inst.abbr}</span>
         </button>
-      </div>`
-    ).join("")}
+      </div>`;
+    }).join("")}
   </div>`;
 }
 
@@ -297,7 +317,7 @@ function renderPerform() {
 }
 
 function popoverHtml() {
-  const { hit, measure, settings, editRows, addSection } = state.menus;
+  const { hit, measure, settings, editRows, addSection, addPiece } = state.menus;
   let extra = "";
 
   if (hit) {
@@ -330,6 +350,28 @@ function popoverHtml() {
             const on = found.measure.rows.includes(item.id);
             return `<label>${item.name}<input type="checkbox" data-action="toggle-row" data-measure="${editRows}" data-instrument="${item.id}" ${on ? "checked" : ""} /></label>`;
           }).join("")}
+        </div>
+      </div>
+    </div>`;
+  }
+  if (addPiece) {
+    const found = findMeasure(state.song, addPiece);
+    const choices = found ? availablePieces(found.measure.rows) : [];
+    extra += `<div class="sheet" data-action="dismiss">
+      <div class="sheet-card" onclick="event.stopPropagation()">
+        <h2>Add kit piece</h2>
+        <p class="sheet-hint">Pieces not already on this grid</p>
+        <div class="piece-list">
+          ${
+            choices.length
+              ? choices
+                  .map(
+                    (item) =>
+                      `<button class="piece-choice" data-action="pick-piece" data-measure="${addPiece}" data-instrument="${item.id}">${kitGlyph(item.id)}<span class="piece-name">${item.name}</span><span class="piece-abbr">${item.abbr}</span></button>`
+                  )
+                  .join("")
+              : `<p class="sheet-empty">Every piece is already on this grid.</p>`
+          }
         </div>
       </div>
     </div>`;
@@ -641,10 +683,7 @@ function onToggleRow(event) {
   if (!found) return;
   if (event.currentTarget.checked) {
     if (!found.measure.rows.includes(instrument)) {
-      const order = KIT.map((item) => item.id);
-      found.measure.rows = order.filter(
-        (id) => found.measure.rows.includes(id) || id === instrument
-      );
+      found.measure.rows = sortRows([...found.measure.rows, instrument]);
     }
   } else if (found.measure.rows.length > 1) {
     found.measure.rows = found.measure.rows.filter((id) => id !== instrument);
@@ -719,15 +758,22 @@ function onAction(event) {
     togglePlayback();
     return;
   }
-  if (action === "add-end") {
-    insertMeasure(section, section.measures.length);
+  if (action === "add-piece") {
+    audio.unlock();
+    state.menus.addPiece = event.currentTarget.dataset.measure;
+    state.menus.measure = null;
     render();
     return;
   }
-  if (action === "insert-after" || action === "nudge-insert") {
+  if (action === "pick-piece") {
     const measureId = event.currentTarget.dataset.measure;
-    const index = section.measures.findIndex((item) => item.id === measureId);
-    insertMeasure(section, action === "insert-after" ? index + 1 : index);
+    const instrument = event.currentTarget.dataset.instrument;
+    const found = findMeasure(state.song, measureId);
+    if (found && !found.measure.rows.includes(instrument)) {
+      found.measure.rows = sortRows([...found.measure.rows, instrument]);
+      audio.play(instrument, 90, instrument === "hat" ? "closed" : null);
+    }
+    closeMenus();
     render();
     return;
   }
@@ -899,6 +945,7 @@ function scheduleHits(fromBeat, toBeat) {
       if (beat >= fromBeat && beat < toBeat) {
         const when = playOrigin + ((beat - playOffsetBeats) * 60) / state.song.bpm;
         KIT.forEach((inst) => {
+          if (!item.measure.rows.includes(inst.id)) return;
           const hit = item.measure.hits[hitKey(inst.id, step)];
           if (!hit) return;
           const timing = (hit.timing || 0) / 1000;
@@ -968,13 +1015,15 @@ function updateKitNotes() {
   const ahead = 3;
   const length = totalBeats();
   KIT.forEach((inst) => {
+    const piece = stage.querySelector(`.kit-${inst.id}`);
     const lane = stage.querySelector(`[data-lane="${inst.id}"]`);
     const pad = stage.querySelector(`.kit-${inst.id} .kit-pad`);
-    if (!lane) return;
+    if (!lane || !piece || piece.classList.contains("ghost")) return;
     const notes = [];
     songTimeline().forEach((item) => {
       const stepBeats = 4 / item.measure.gridDivision;
       for (let step = 0; step < item.measure.gridDivision; step += 1) {
+        if (!item.measure.rows.includes(inst.id)) continue;
         const hit = item.measure.hits[hitKey(inst.id, step)];
         if (!hit) continue;
         const beat = item.startBeat + step * stepBeats;

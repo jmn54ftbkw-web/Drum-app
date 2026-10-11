@@ -357,13 +357,26 @@ button {
   z-index: 2;
 }
 
+.row-handle {
+  display: grid;
+  place-items: center;
+  width: 32px;
+  height: 32px;
+  color: #d0d0d4;
+}
+
+.row-handle svg {
+  width: 18px;
+  height: 18px;
+}
+
 .insert {
   display: flex;
   align-items: center;
   justify-content: flex-start;
   gap: 8px;
-  min-height: 28px;
-  padding: 0 36px;
+  min-height: 36px;
+  padding: 4px 36px;
   color: #8e8e93;
   font-size: 14px;
 }
@@ -379,18 +392,54 @@ button {
   font-size: 16px;
 }
 
-.add-end {
-  display: grid;
-  place-items: center;
-  padding: 14px 0 8px;
+.sheet-hint {
+  margin: -6px 0 12px;
+  color: #8e8e93;
+  font-size: 13px;
 }
 
-.add-end button {
-  width: 36px;
-  height: 36px;
-  border-radius: 18px;
-  background: #2c2c2e;
-  font-size: 22px;
+.sheet-empty {
+  margin: 8px 0 0;
+  color: #8e8e93;
+  font-size: 14px;
+}
+
+.piece-list {
+  display: flex;
+  flex-direction: column;
+  max-height: min(60vh, 440px);
+  overflow-y: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.piece-choice {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  width: 100%;
+  min-height: 48px;
+  padding: 10px 6px;
+  border-top: 1px solid #2c2c2e;
+  color: #f2f2f7;
+  text-align: left;
+  font-size: 16px;
+}
+
+.piece-choice svg {
+  width: 22px;
+  height: 22px;
+  flex: 0 0 auto;
+}
+
+.piece-name {
+  flex: 1;
+  font-weight: 600;
+}
+
+.piece-abbr {
+  color: #8e8e93;
+  font-size: 13px;
+  font-weight: 700;
 }
 
 .transport {
@@ -833,13 +882,39 @@ button {
   box-shadow: 0 0 18px rgba(10, 132, 255, 0.55);
 }
 
-.kit-crash { left: 10%; top: 10%; }
-.kit-ride { left: 72%; top: 12%; }
-.kit-hat { left: 41%; top: 18%; }
-.kit-tom2 { left: 16%; top: 46%; }
-.kit-snare { left: 58%; top: 48%; }
-.kit-kick { left: 38%; top: 68%; width: 88px; }
-.kit-kick .kit-pad { width: 78px; height: 78px; }
+.kit-piece.ghost {
+  opacity: 0.26;
+  filter: grayscale(0.35);
+  pointer-events: none;
+}
+
+.kit-piece.ghost .kit-lane {
+  visibility: hidden;
+}
+
+.kit-piece.ghost .kit-pad {
+  box-shadow: inset 0 0 0 1px #3a3a3c;
+}
+
+.kit-crash { left: 8%; top: 3%; }
+.kit-tambourine { left: 4%; top: 22%; }
+.kit-hat { left: 14%; top: 28%; }
+.kit-clap { left: 22%; top: 56%; }
+.kit-kick { left: 38%; top: 68%; width: 96px; }
+.kit-snare { left: 39%; top: 44%; }
+.kit-tomHigh1 { left: 52%; top: 16%; }
+.kit-tomHigh2 { left: 62%; top: 14%; }
+.kit-tom1 { left: 53%; top: 28%; }
+.kit-tom2 { left: 63%; top: 30%; }
+.kit-cowbell { left: 50%; top: 36%; }
+.kit-ride { left: 70%; top: 4%; }
+.kit-floorTom1 { left: 74%; top: 40%; }
+.kit-floorTom { left: 76%; top: 52%; }
+.kit-floorTom2 { left: 78%; top: 64%; }
+.kit-splash { left: 86%; top: 1%; }
+.kit-crash2 { left: 86%; top: 13%; }
+.kit-trash { left: 87%; top: 25%; }
+.kit-kick .kit-pad { width: 82px; height: 82px; }
 
 .staff-section-label {
   margin: 18px 8px 6px;
@@ -883,9 +958,16 @@ button {
     min-height: 44px;
   }
 
-  .gutter button {
+  .gutter button,
+  .row-handle {
     width: 40px;
     height: 40px;
+  }
+
+  .insert {
+    min-height: 44px;
+    padding: 8px 32px;
+    font-size: 16px;
   }
 
   .popover-row,
@@ -896,15 +978,39 @@ button {
   }
 
   .kit-piece {
-    width: 64px;
+    width: 56px;
   }
 
   .kit-pad {
-    width: 58px;
-    height: 58px;
+    width: 48px;
+    height: 48px;
+    font-size: 9px;
   }
 
-  .kit-kick { left: 34%; }
+  .kit-lane {
+    height: 72px;
+  }
+
+  .kit-crash { left: 2%; top: 2%; }
+  .kit-tambourine { left: 1%; top: 20%; }
+  .kit-hat { left: 8%; top: 28%; }
+  .kit-clap { left: 16%; top: 56%; }
+  .kit-kick { left: 32%; top: 68%; width: 72px; }
+  .kit-snare { left: 33%; top: 46%; }
+  .kit-tomHigh1 { left: 48%; top: 16%; }
+  .kit-tomHigh2 { left: 58%; top: 14%; }
+  .kit-tom1 { left: 49%; top: 28%; }
+  .kit-tom2 { left: 59%; top: 30%; }
+  .kit-cowbell { left: 46%; top: 36%; }
+  .kit-ride { left: 66%; top: 3%; }
+  .kit-floorTom1 { left: 70%; top: 40%; }
+  .kit-floorTom { left: 72%; top: 52%; }
+  .kit-floorTom2 { left: 74%; top: 64%; }
+  .kit-splash { left: 82%; top: 0%; }
+  .kit-crash2 { left: 82%; top: 13%; }
+  .kit-trash { left: 83%; top: 26%; }
+  .kit-kick .kit-pad { width: 64px; height: 64px; }
+
   .perform-heading h2 {
     font-size: 18px;
   }
@@ -933,12 +1039,24 @@ button {
     height: 72px;
   }
 
-  .kit-crash { left: 8%; top: 4%; }
-  .kit-ride { left: 78%; top: 6%; }
-  .kit-hat { left: 44%; top: 8%; }
-  .kit-tom2 { left: 18%; top: 38%; }
-  .kit-snare { left: 62%; top: 40%; }
-  .kit-kick { left: 40%; top: 58%; }
+  .kit-crash { left: 6%; top: 2%; }
+  .kit-tambourine { left: 3%; top: 18%; }
+  .kit-hat { left: 14%; top: 22%; }
+  .kit-clap { left: 22%; top: 50%; }
+  .kit-kick { left: 38%; top: 58%; }
+  .kit-snare { left: 39%; top: 36%; }
+  .kit-tomHigh1 { left: 52%; top: 10%; }
+  .kit-tomHigh2 { left: 61%; top: 8%; }
+  .kit-tom1 { left: 53%; top: 22%; }
+  .kit-tom2 { left: 62%; top: 24%; }
+  .kit-cowbell { left: 50%; top: 28%; }
+  .kit-ride { left: 70%; top: 2%; }
+  .kit-floorTom1 { left: 74%; top: 32%; }
+  .kit-floorTom { left: 76%; top: 44%; }
+  .kit-floorTom2 { left: 78%; top: 56%; }
+  .kit-splash { left: 86%; top: 0%; }
+  .kit-crash2 { left: 86%; top: 12%; }
+  .kit-trash { left: 87%; top: 24%; }
 
   .portrait-transport {
     padding: 6px 14px calc(8px + var(--safe-bottom));
