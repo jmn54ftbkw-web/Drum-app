@@ -181,11 +181,11 @@ function kitGlyph(id) {
     return `<svg viewBox="0 0 24 24"><path d="M4 13h16M7 13l5-4 5 4M8 16h8" fill="none" stroke="currentColor" stroke-width="1.6" stroke-linecap="round"/></svg>`;
   }
   if (id === "ride") {
-    return `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="7.1" ry="2.15" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 6.6v10.8" stroke="currentColor" stroke-width="1.6"/></svg>`;
+    return `<svg viewBox="0 0 24 24"><g transform="rotate(-18 12 12)"><ellipse cx="12" cy="12" rx="9.4" ry="2.85" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 5.2v13.6" stroke="currentColor" stroke-width="1.6"/></g></svg>`;
   }
   if (id === "crash" || id === "crash2") {
-    const tilt = id === "crash2" ? 15 : -18;
-    return `<svg viewBox="0 0 24 24"><g transform="rotate(${tilt} 12 12)"><ellipse cx="12" cy="12" rx="9.4" ry="2.85" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 5.2v13.6" stroke="currentColor" stroke-width="1.6"/></g></svg>`;
+    const tilt = id === "crash2" ? 8 : 0;
+    return `<svg viewBox="0 0 24 24"><g transform="rotate(${tilt} 12 12)"><ellipse cx="12" cy="12" rx="7.1" ry="2.15" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 6.6v10.8" stroke="currentColor" stroke-width="1.6"/></g></svg>`;
   }
   if (id === "splash") {
     return `<svg viewBox="0 0 24 24"><ellipse cx="12" cy="12" rx="5.5" ry="1.8" fill="none" stroke="currentColor" stroke-width="1.6"/><path d="M12 8v8" stroke="currentColor" stroke-width="1.6"/></svg>`;
